@@ -38,6 +38,23 @@ io.on("connection", (socket: Socket) => {
         socket.join(roomId);
         console.log(`User with ID: ${socket.id} joined room: ${roomId}`);
     });
+
+    socket.on('register_user', (username: string) => {
+    socket.data.username = username;
+
+    // Notificar a todos los demás usuarios que se ha conectado un usuario
+    socket.broadcast.emit('user_connected', {
+        message: `El usuario ${username} se ha conectado.`,
+        username: username
+    });
+});
+
+    socket.on("join_room", (data: {roomId: string, username: string}) => {
+    socket.join(data.roomId);
+    console.log(`User with ID: ${socket.id} (${data.username}) joined room: ${data.roomId}`);
+    // Notifica al resto de usuarios de la sala
+    socket.to(data.roomId).emit("user_joined", { username: data.username, room: data.roomId });
+});
 });
 
 server.listen(3001, () => {

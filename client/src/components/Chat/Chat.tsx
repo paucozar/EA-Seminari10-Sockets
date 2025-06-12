@@ -1,9 +1,9 @@
 // src/components/Chat/Chat.tsx
-import React, { useEffect, useRef, useState } from 'react';
-import './Chat.css';
-import { io, Socket } from 'socket.io-client';
-import { useLocation } from 'react-router-dom';
-import { User } from '../../types/types';
+import React, { useEffect, useRef, useState } from "react";
+import "./Chat.css";
+import { io, Socket } from "socket.io-client";
+import { useLocation } from "react-router-dom";
+import { User } from "../../types/types";
 
 interface ChatMessage {
   room: string;
@@ -15,8 +15,8 @@ interface ChatMessage {
 const Chat: React.FC = () => {
   const location = useLocation();
   const user = location.state?.user as User; // Accede al usuario pasado por navigate
-  const [room, setRoom] = useState('sala1');
-  const [currentMessage, setCurrentMessage] = useState('');
+  const [room, setRoom] = useState("sala1");
+  const [currentMessage, setCurrentMessage] = useState("");
   const [messageList, setMessageList] = useState<ChatMessage[]>([]);
   const [showChat, setShowChat] = useState(false);
 
@@ -24,24 +24,38 @@ const Chat: React.FC = () => {
   const chatBodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem("accessToken");
 
-    socketRef.current = io('http://localhost:3001', {
+    socketRef.current = io("http://localhost:3001", {
       auth: {
         token,
       },
     });
 
-    socketRef.current.on('receive_message', (data: ChatMessage) => {
-      console.log('Mensaje recibido:', data);
-      setMessageList(prev => [...prev, data]);
+    socketRef.current.on("receive_message", (data: ChatMessage) => {
+      console.log("Mensaje recibido:", data);
+      setMessageList((prev) => [...prev, data]);
     });
 
-    socketRef.current.on('status', (data) => {
-      console.debug('Estado recibido:', data);
-      if (data.status === 'unauthorized') {
-        window.location.href = '/';
+    socketRef.current.on("status", (data) => {
+      console.debug("Estado recibido:", data);
+      if (data.status === "unauthorized") {
+        window.location.href = "/";
       }
+    });
+
+    socketRef.current.on("connect", () => {
+      socketRef.current?.emit("register_user", user.name);
+    });
+
+    // Escuchar cuando un usuario se une a la sala
+    socketRef.current.on("user_joined", (data) => {
+      alert(`Un nuevo usuario se ha unido a la sala: ${data.username}`);
+    });
+
+    // Escuchar cuando un usuario se conecta al servidor
+    socketRef.current.on("user_connected", (data) => {
+      alert(data.message); // O muestra el mensaje donde quieras
     });
 
     return () => {
@@ -55,15 +69,18 @@ const Chat: React.FC = () => {
     }
   }, [messageList]);
 
-  const joinRoom = () => {    
+  const joinRoom = () => {
     if (room) {
-      socketRef.current?.emit('join_room', room);
+      socketRef.current?.emit("join_room", {
+        roomId: room,
+        username: user.name,
+      });
       setShowChat(true);
     }
   };
 
   const sendMessage = async () => {
-    if (currentMessage !== '') {
+    if (currentMessage !== "") {
       const messageData: ChatMessage = {
         room,
         author: user.name,
@@ -71,9 +88,9 @@ const Chat: React.FC = () => {
         time: new Date().toLocaleTimeString(),
       };
 
-      await socketRef.current?.emit('send_message', messageData);
-      setMessageList(prev => [...prev, messageData]);
-      setCurrentMessage('');
+      await socketRef.current?.emit("send_message", messageData);
+      setMessageList((prev) => [...prev, messageData]);
+      setCurrentMessage("");
     }
   };
 
@@ -97,7 +114,9 @@ const Chat: React.FC = () => {
             {messageList.map((msg, index) => (
               <div
                 key={index}
-                className={`message ${msg.author === user.name ? 'own' : 'other'}`}
+                className={`message ${
+                  msg.author === user.name ? "own" : "other"
+                }`}
               >
                 <div className="bubble">
                   <p>{msg.message}</p>
@@ -115,7 +134,7 @@ const Chat: React.FC = () => {
               placeholder="Mensaje..."
               value={currentMessage}
               onChange={(e) => setCurrentMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             />
             <button onClick={sendMessage}>Enviar</button>
           </div>
